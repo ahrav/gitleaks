@@ -1,5 +1,10 @@
 package sources
 
+// CommitInfoProvider is an interface for lazy loading commit metadata
+type CommitInfoProvider interface {
+	GetCommitInfo() *CommitInfo
+}
+
 // Fragment represents a fragment of a source with its meta data
 type Fragment struct {
 	// Raw is the raw content of the fragment
@@ -23,4 +28,29 @@ type Fragment struct {
 
 	// CommitInfo captures additional information about the git commit if applicable
 	CommitInfo *CommitInfo
+
+	// CommitInfoProvider allows lazy loading of commit metadata
+	// This is used by packfile-based sources to avoid inflating commit objects
+	// until a finding is actually detected
+	commitInfoProvider CommitInfoProvider
+}
+
+// GetCommitInfo returns the commit info, loading it lazily if needed
+func (f *Fragment) GetCommitInfo() *CommitInfo {
+	if f.CommitInfo != nil {
+		return f.CommitInfo
+	}
+
+	if f.commitInfoProvider != nil {
+		f.CommitInfo = f.commitInfoProvider.GetCommitInfo()
+		// Clear the provider after loading to free memory
+		f.commitInfoProvider = nil
+	}
+
+	return f.CommitInfo
+}
+
+// SetCommitInfoProvider sets a lazy loader for commit metadata
+func (f *Fragment) SetCommitInfoProvider(provider CommitInfoProvider) {
+	f.commitInfoProvider = provider
 }
