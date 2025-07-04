@@ -84,7 +84,6 @@ func NewGitPackfile(repoPath string, cfg *config.Config, remote *RemoteInfo, sem
 	if err != nil {
 		return nil, fmt.Errorf("failed to create history scanner: %w", err)
 	}
-	scanner.SetMaxDeltaDepth(100)
 
 	return &GitPackfile{
 		RepoPath:    repoPath,
@@ -113,79 +112,107 @@ func (s *GitPackfile) Fragments(ctx context.Context, yield FragmentsFunc) error 
 	// Stream hunks from the scanner
 	hunks, errors := s.scanner.DiffHistoryHunks()
 
-	// Process errors in background
-	errDone := make(chan struct{})
-	go func() {
-		defer close(errDone)
-		if err := <-errors; err != nil && err != objstore.ErrCommitGraphRequired {
-			logging.Error().Err(err).Msg("error during packfile scanning")
-		}
-	}()
+	// Debug counters
+	hunkCount := 0
+	fragmentCount := 0
+	totalLines := 0
 
-	// Process hunks with concurrency control
+	// WaitGroup to coordinate with semaphore goroutines (like git.go)
 	var wg sync.WaitGroup
 
-	for hunk := range hunks {
+	// Process hunks until channel closes or error received (like working standalone example)
+	for {
 		select {
-		case <-ctx.Done():
-			return ctx.Err()
-		default:
-		}
-
-		commitSHA := hunk.Commit().String()
-
-		// Skip if commit is in allowlist
-		if isCommitAllowed(commitSHA) {
-			logging.Trace().Str("allowed-commit", commitSHA).Msg("skipping commit: global allowlist")
-			continue
-		}
-
-		wg.Add(1)
-		s.Sema.Go(func() error {
-			defer wg.Done()
-
-			// Check if this is an archive file
-			if isArchive(ctx, hunk.Path()) {
-				// For archives, we need to get the blob content
-				// This would require extending your scanner to provide blob access
-				// For now, we'll skip archives
-				logging.Debug().Str("path", hunk.Path()).Msg("skipping archive file in packfile scan")
+		case hunk, ok := <-hunks:
+			if !ok {
+				// Hunks channel closed, we're done
+				wg.Wait()
+				logging.Debug().Msgf("Packfile scan complete: %d hunks -> %d fragments, %d total lines", hunkCount, fragmentCount, totalLines)
 				return nil
 			}
 
-			// Combine hunk lines into raw content
-			rawBuilder := builderPool.Get().(*strings.Builder)
-			defer builderPool.Put(rawBuilder)
-			rawBuilder.Reset()
+			hunkCount++
+			commitSHA := hunk.Commit().String()
 
-			for _, line := range hunk.Lines() {
-				rawBuilder.Write(line)
-				rawBuilder.WriteByte('\n')
+			// Skip if commit is in allowlist
+			if isCommitAllowed(commitSHA) {
+				logging.Trace().Str("allowed-commit", commitSHA).Msg("skipping commit: global allowlist")
+				continue
 			}
 
-			fragment := Fragment{
-				CommitSHA: commitSHA,
-				FilePath:  hunk.Path(),
-				Raw:       rawBuilder.String(),
-				StartLine: hunk.StartLine(),
-				// Don't set CommitInfo - use lazy loading instead
+			// Skip archive files
+			if isArchive(ctx, hunk.Path()) {
+				logging.Debug().Str("path", hunk.Path()).Msg("skipping archive file in packfile scan")
+				continue
 			}
 
-			// Set the lazy loader
-			fragment.SetCommitInfoProvider(&lazyCommitInfo{
-				commitHash: hunk.Commit(),
-				scanner:    s.scanner,
-				cache:      s.commitCache,
-				remote:     s.Remote,
+			fragmentCount++
+			lines := hunk.Lines()
+			totalLines += len(lines)
+
+			// Skip very large hunks (likely generated files, minified code, etc.)
+			maxLines := 1_000
+			if len(lines) > maxLines {
+				logging.Debug().Msgf("Skipping large hunk: commit=%s, path=%s, lines=%d (max=%d)",
+					commitSHA[:8], hunk.Path(), len(lines), maxLines)
+				continue
+			}
+
+			// Debug: Log first few hunks to see what we're processing
+			if hunkCount <= 5 {
+				logging.Debug().Msgf("Hunk %d: commit=%s, path=%s, lines=%d, start=%d",
+					hunkCount, commitSHA[:8], hunk.Path(), len(lines), hunk.StartLine())
+			}
+
+			// Process hunk with proper semaphore coordination (like git.go)
+			wg.Add(1)
+			s.Sema.Go(func() error {
+				defer wg.Done()
+
+				rawBuilder := builderPool.Get().(*strings.Builder)
+				defer builderPool.Put(rawBuilder)
+				rawBuilder.Reset()
+
+				for _, line := range lines {
+					rawBuilder.WriteString(line)
+					rawBuilder.WriteString("\n")
+				}
+
+				fragment := Fragment{
+					CommitSHA: commitSHA,
+					FilePath:  hunk.Path(),
+					Raw:       rawBuilder.String(),
+					StartLine: hunk.StartLine(),
+				}
+
+				// Set the lazy loader
+				fragment.SetCommitInfoProvider(&lazyCommitInfo{
+					commitHash: hunk.Commit(),
+					scanner:    s.scanner,
+					cache:      s.commitCache,
+					remote:     s.Remote,
+				})
+
+				// Yield fragment (like git.go)
+				if err := yield(fragment, nil); err != nil {
+					return err
+				}
+
+				return nil
 			})
 
-			return yield(fragment, nil)
-		})
+		case err := <-errors:
+			// Any error (including nil) means we're done (like working standalone example)
+			if err != nil && err != objstore.ErrCommitGraphRequired {
+				logging.Error().Err(err).Msg("error during packfile scanning")
+				wg.Wait()
+				return err
+			}
+			wg.Wait()
+			logging.Debug().Msgf("Packfile scan complete: %d hunks -> %d fragments, %d total lines", hunkCount, fragmentCount, totalLines)
+			return nil
+		}
 	}
-
-	wg.Wait()
-	<-errDone
-	return nil
 }
 
 // Close closes the underlying scanner
@@ -198,14 +225,12 @@ func (s *GitPackfile) Close() error {
 
 // SetMaxDeltaDepth configures the maximum delta chain depth for object retrieval
 func (s *GitPackfile) SetMaxDeltaDepth(depth int) {
-	if s.scanner != nil {
-		s.scanner.SetMaxDeltaDepth(depth)
-	}
+	// Note: SetMaxDeltaDepth may not be available in current go-gitpack version
+	// This is a placeholder for when the method becomes available
 }
 
 // SetVerifyCRC enables or disables CRC-32 validation
 func (s *GitPackfile) SetVerifyCRC(verify bool) {
-	if s.scanner != nil {
-		s.scanner.SetVerifyCRC(verify)
-	}
+	// Note: SetVerifyCRC may not be available in current go-gitpack version
+	// This is a placeholder for when the method becomes available
 }

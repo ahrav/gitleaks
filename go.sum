@@ -33,6 +33,14 @@ github.com/ahrav/go-gitpack v0.0.0-20250701191708-213d55478557 h1:JzE22wag1ewTFj
 github.com/ahrav/go-gitpack v0.0.0-20250701191708-213d55478557/go.mod h1:8mNfpLQkWswyhnmsQAVKFEPHCg2mukkHa1e3AvAPNdg=
 github.com/ahrav/go-gitpack v0.0.0-20250701205447-2b2b5512b357 h1:0wGVu+CyU68ukU0fvZiEvF9rlUROE2LBq/NGqH2FUmA=
 github.com/ahrav/go-gitpack v0.0.0-20250701205447-2b2b5512b357/go.mod h1:8mNfpLQkWswyhnmsQAVKFEPHCg2mukkHa1e3AvAPNdg=
+github.com/ahrav/go-gitpack v0.0.0-20250704075657-1b9dda4d713a h1:RMO7bcfCxFhE02xIMdzXQoQeOGhz3of+tcFvJiBgEFY=
+github.com/ahrav/go-gitpack v0.0.0-20250704075657-1b9dda4d713a/go.mod h1:57iwvUMShfTc+U8gKd2DEQJBksrAC4gomnQobfGqNRU=
+github.com/ahrav/go-gitpack v0.0.0-20250704081218-29f78a1f02f6 h1:asuBWTwnS2OZ/hjPl9lytgvDNKDOeKnGuwQsNMxpleY=
+github.com/ahrav/go-gitpack v0.0.0-20250704081218-29f78a1f02f6/go.mod h1:57iwvUMShfTc+U8gKd2DEQJBksrAC4gomnQobfGqNRU=
+github.com/ahrav/go-gitpack v0.0.0-20250704091730-17eef6166a85 h1:u9dby/eMMpKKb7vbe/PeMilOJkFZCjMV8eZmHq6z0uU=
+github.com/ahrav/go-gitpack v0.0.0-20250704091730-17eef6166a85/go.mod h1:57iwvUMShfTc+U8gKd2DEQJBksrAC4gomnQobfGqNRU=
+github.com/ahrav/go-gitpack v0.0.0-20250704094644-bb99cf73d5b0 h1:hABWOsXnwCkXCvcfgRv7vtbF9I+70PalHfIZpUGs9MU=
+github.com/ahrav/go-gitpack v0.0.0-20250704094644-bb99cf73d5b0/go.mod h1:57iwvUMShfTc+U8gKd2DEQJBksrAC4gomnQobfGqNRU=
 github.com/andybalholm/brotli v1.1.2-0.20250424173009-453214e765f3 h1:8PmGpDEZl9yDpcdEr6Odf23feCxK3LNUNMxjXg41pZQ=
 github.com/andybalholm/brotli v1.1.2-0.20250424173009-453214e765f3/go.mod h1:05ib4cKhjx3OQYUY22hTVd34Bc8upXjOLL2rKwwZBoA=
 github.com/aymanbagabas/go-osc52/v2 v2.0.1 h1:HwpRHbFMcZLEVr42D4p7XBqjyuxQH5SMiErDT4WkJ2k=

@@ -66,7 +66,7 @@ require (
 )
 
 require (
-	github.com/ahrav/go-gitpack v0.0.0-20250701205447-2b2b5512b357
+	github.com/ahrav/go-gitpack v0.0.0-20250704094644-bb99cf73d5b0
 	github.com/davecgh/go-spew v1.1.2-0.20180830191138-d8f796af33cc // indirect
 	github.com/fsnotify/fsnotify v1.8.0 // indirect
 	github.com/hashicorp/hcl v1.0.0 // indirect
