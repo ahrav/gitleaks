@@ -10,17 +10,16 @@ import (
 	"sync/atomic"
 	"time"
 
+	ahocorasick "github.com/BobuSumisu/aho-corasick"
+	"github.com/fatih/semgroup"
+	"github.com/rs/zerolog"
+	"github.com/spf13/viper"
 	"github.com/zricethezav/gitleaks/v8/config"
 	"github.com/zricethezav/gitleaks/v8/detect/codec"
 	"github.com/zricethezav/gitleaks/v8/logging"
 	"github.com/zricethezav/gitleaks/v8/regexp"
 	"github.com/zricethezav/gitleaks/v8/report"
 	"github.com/zricethezav/gitleaks/v8/sources"
-
-	ahocorasick "github.com/BobuSumisu/aho-corasick"
-	"github.com/fatih/semgroup"
-	"github.com/rs/zerolog"
-	"github.com/spf13/viper"
 	"golang.org/x/exp/maps"
 )
 
@@ -109,7 +108,7 @@ type Detector struct {
 // Fragment is an alias for sources.Fragment for backwards compatibility
 //
 // Deprecated: This will be replaced with sources.Fragment in v9
-type Fragment sources.Fragment
+type Fragment = sources.Fragment
 
 // NewDetector creates a new detector with the given config
 func NewDetector(cfg config.Config) *Detector {
@@ -468,12 +467,15 @@ func (d *Detector) detectRule(fragment Fragment, newlineIndices [][]int, current
 			SymlinkFile: fragment.SymlinkFile,
 			Tags:        append(r.Tags, metaTags...),
 		}
-		if fragment.CommitInfo != nil {
-			finding.Author = fragment.CommitInfo.AuthorName
-			finding.Date = fragment.CommitInfo.Date
-			finding.Email = fragment.CommitInfo.AuthorEmail
-			finding.Link = createScmLink(fragment.CommitInfo.Remote, finding)
-			finding.Message = fragment.CommitInfo.Message
+
+		commitInfo := fragment.GetCommitInfo()
+
+		if commitInfo != nil {
+			finding.Author = commitInfo.AuthorName
+			finding.Date = commitInfo.Date
+			finding.Email = commitInfo.AuthorEmail
+			finding.Link = createScmLink(commitInfo.Remote, finding)
+			finding.Message = commitInfo.Message
 		}
 		if !d.IgnoreGitleaksAllow && strings.Contains(finding.Line, gitleaksAllowSignature) {
 			logger.Trace().

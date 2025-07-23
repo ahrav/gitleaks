@@ -24,7 +24,6 @@ import (
 	"time"
 
 	"github.com/spf13/cobra"
-
 	"github.com/zricethezav/gitleaks/v8/cmd/scm"
 	"github.com/zricethezav/gitleaks/v8/logging"
 	"github.com/zricethezav/gitleaks/v8/report"
